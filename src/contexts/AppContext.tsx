@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Agent, Proposal, Transaction, Network, ProposalStatus, AgentVote } from '@/types';
 import { agents as mockAgents, proposals as mockProposals, transactions as mockTransactions, network as mockNetwork } from '@/data/mockData';
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner'; // Import directly from sonner package, not from our UI component
 
 interface AppContextType {
   agents: Agent[];
@@ -148,7 +148,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Simulate voting one by one
       agents.forEach((agent, index) => {
         setTimeout(() => {
-          const vote: Vote = Math.random() > 0.3 ? 'approve' : 'revise';
+          const vote: AgentVote['vote'] = Math.random() > 0.3 ? 'approve' : 'revise';
           const reasons = {
             strategist: {
               approve: "This aligns with our long-term objectives and growth strategy.",
