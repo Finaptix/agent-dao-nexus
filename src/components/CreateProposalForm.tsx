@@ -40,8 +40,14 @@ const CreateProposalForm: React.FC = () => {
   });
   
   const onSubmit = (values: FormValues) => {
+    // Fix: Ensure all required fields are explicitly included and not optional
     const newProposal: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt' | 'votes'> = {
-      ...values,
+      title: values.title,
+      description: values.description,
+      type: values.type as ProposalType,
+      budget: values.budget || '',
+      timeline: values.timeline || '',
+      author: values.author,
       status: 'pending',
     };
     
