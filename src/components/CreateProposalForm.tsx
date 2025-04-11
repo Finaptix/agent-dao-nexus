@@ -1,192 +1,185 @@
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppContext } from '@/contexts/AppContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Proposal, ProposalType } from '@/types';
+import { toast } from 'sonner';
 
-const formSchema = z.object({
-  title: z.string().min(5, { message: 'Title must be at least 5 characters' }),
-  description: z.string().min(20, { message: 'Description must be at least 20 characters' }),
-  type: z.enum(['funding', 'governance', 'development', 'community', 'other']),
-  budget: z.string().optional(),
-  timeline: z.string().optional(),
-  author: z.string().min(5, { message: 'Author address is required' }),
-});
+const proposalTypes = [
+  { value: '0', label: 'Funding' },
+  { value: '1', label: 'Governance' },
+  { value: '2', label: 'Development' },
+  { value: '3', label: 'Community' },
+  { value: '4', label: 'Other' }
+];
 
-type FormValues = z.infer<typeof formSchema>;
-
-const CreateProposalForm: React.FC = () => {
-  const { addProposal } = useAppContext();
-  const [open, setOpen] = React.useState(false);
+const CreateProposalForm = () => {
+  const { 
+    addProposal, 
+    walletConnected, 
+    walletAddress, 
+    isCorrectNetwork, 
+    daoContract,
+    checkAndSwitchNetwork
+  } = useAppContext();
   
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      type: 'governance',
-      budget: '',
-      timeline: '',
-      author: '0x1234...5678', // Default for demo purposes
-    },
-  });
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [proposalType, setProposalType] = useState('0');
+  const [budget, setBudget] = useState('');
+  const [timeline, setTimeline] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const onSubmit = (values: FormValues) => {
-    // Fix: Ensure all required fields are explicitly included and not optional
-    const newProposal: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt' | 'votes'> = {
-      title: values.title,
-      description: values.description,
-      type: values.type as ProposalType,
-      budget: values.budget || '',
-      timeline: values.timeline || '',
-      author: values.author,
-      status: 'pending',
-    };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    addProposal(newProposal);
-    form.reset();
-    setOpen(false);
+    if (!title || !description) {
+      toast.error('Missing fields', {
+        description: 'Please fill out all required fields'
+      });
+      return;
+    }
+    
+    if (!walletConnected) {
+      toast.error('Wallet not connected', {
+        description: 'Please connect your MetaMask wallet to submit a proposal'
+      });
+      return;
+    }
+    
+    if (!isCorrectNetwork) {
+      toast.warning('Wrong network', {
+        description: 'Please connect to Minato Testnet to submit a proposal'
+      });
+      const switched = await checkAndSwitchNetwork();
+      if (!switched) return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // If we have a contract connection, submit on-chain
+      if (daoContract) {
+        const tx = await daoContract.createProposal(
+          title,
+          description,
+          parseInt(proposalType),
+          budget || 'N/A',
+          timeline || 'N/A'
+        );
+        
+        toast.success('Proposal submitted on-chain', {
+          description: `Transaction hash: ${tx.substring(0, 10)}...${tx.substring(tx.length - 6)}`
+        });
+      }
+      
+      // Always update UI with the new proposal for demo purposes
+      addProposal({
+        title,
+        description,
+        type: proposalTypes.find(t => t.value === proposalType)?.label.toLowerCase() || 'other',
+        author: walletAddress || '0x0',
+        budget: budget || 'N/A',
+        timeline: timeline || 'N/A'
+      });
+      
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setProposalType('0');
+      setBudget('');
+      setTimeline('');
+    } catch (error: any) {
+      console.error('Error submitting proposal:', error);
+      toast.error('Submission Failed', {
+        description: error.message || 'Failed to submit proposal'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
+  
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Create Proposal</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle>Create New Proposal</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Proposal title" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe your proposal in detail" 
-                      className="min-h-[120px]" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="funding">Funding</SelectItem>
-                        <SelectItem value="governance">Governance</SelectItem>
-                        <SelectItem value="development">Development</SelectItem>
-                        <SelectItem value="community">Community</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="author"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Author Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="0x..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="budget"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Budget (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. 5,000 tokens" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="timeline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Timeline (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Q2 2025" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Submit Proposal</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">Title</Label>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter proposal title"
+          required
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe your proposal in detail"
+          className="min-h-[100px]"
+          required
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="type">Proposal Type</Label>
+        <Select 
+          value={proposalType} 
+          onValueChange={setProposalType}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a proposal type" />
+          </SelectTrigger>
+          <SelectContent>
+            {proposalTypes.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="budget">Budget (optional)</Label>
+        <Input
+          id="budget"
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+          placeholder="e.g. 500 ETH"
+        />
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="timeline">Timeline (optional)</Label>
+        <Input
+          id="timeline"
+          value={timeline}
+          onChange={(e) => setTimeline(e.target.value)}
+          placeholder="e.g. 2 weeks"
+        />
+      </div>
+      
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={isSubmitting || !walletConnected}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit Proposal'}
+      </Button>
+      
+      {!walletConnected && (
+        <p className="text-xs text-center text-muted-foreground mt-2">
+          Connect your wallet to submit proposals
+        </p>
+      )}
+    </form>
   );
 };
 

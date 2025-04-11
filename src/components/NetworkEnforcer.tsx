@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Wallet, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { ethers } from 'ethers';
+import { switchToMinatoNetwork } from '@/utils/networkUtils';
 
 interface NetworkEnforcerProps {
   children: React.ReactNode;
@@ -54,6 +54,9 @@ const NetworkEnforcer: React.FC<NetworkEnforcerProps> = ({ children }) => {
       }
       
       connectWallet(address, provider);
+      toast.success('Wallet Connected', {
+        description: `Connected to ${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+      });
     } catch (error: any) {
       toast.error('Connection Failed', {
         description: error.message || 'Failed to connect wallet'

@@ -1,103 +1,98 @@
 
 // This is a script to deploy the InjectAI DAO contract to the Minato Testnet
-// You would run this with a tool like hardhat or using ethers.js directly
-
-/*
-Example deployment steps:
-
-1. Install hardhat: npm install --save-dev hardhat
-2. Initialize a hardhat project: npx hardhat init
-3. Copy the InjectAI_DAO.sol to the contracts folder
-4. Create a deployment script in the scripts folder
-5. Configure hardhat.config.js with Minato Testnet
-6. Run: npx hardhat run scripts/deploy.js --network minato
-
-Sample hardhat.config.js:
-
-require("@nomicfoundation/hardhat-toolbox");
-
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
-  solidity: "0.8.20",
-  networks: {
-    minato: {
-      url: "https://rpc.minato.soneium.org/",
-      accounts: [process.env.PRIVATE_KEY],
-      chainId: 1946
-    }
-  }
-};
-
-Sample deployment script:
-
-const hre = require("hardhat");
-
-async function main() {
-  const InjectAIDAO = await hre.ethers.getContractFactory("InjectAIDAO");
-  const dao = await InjectAIDAO.deploy();
-  
-  await dao.deployed();
-  
-  console.log("InjectAI DAO deployed to:", dao.address);
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-*/
-
-// Simple deployment script using ethers.js directly
 const { ethers } = require("ethers");
 const fs = require("fs");
 
-// Load contract ABI and bytecode
-// In a real deployment, you would compile the contract first
-// const contractArtifact = JSON.parse(fs.readFileSync("./InjectAIDAO.json"));
+// To deploy this contract to Minato Testnet, follow these steps:
+// 1. Install dependencies: npm install ethers@5.7.2
+// 2. Save your private key securely as an environment variable
+// 3. Run this script with: PRIVATE_KEY=your_private_key node deploy.js
+
+const CONTRACT_SOURCE = "./InjectAI_DAO.sol";
+const MINATO_RPC_URL = "https://rpc.minato.soneium.org/";
 
 async function deploy() {
-  // Connect to the Minato Testnet
-  const provider = new ethers.providers.JsonRpcProvider("https://rpc.minato.soneium.org/");
+  console.log("Deploying InjectAI DAO contract to Minato Testnet...");
   
-  // Load your wallet using a private key (never hardcode this in production)
-  const privateKey = process.env.PRIVATE_KEY;
-  if (!privateKey) {
-    throw new Error("PRIVATE_KEY environment variable is required");
+  // Connect to the Minato Testnet
+  const provider = new ethers.providers.JsonRpcProvider(MINATO_RPC_URL);
+  
+  // Load your wallet using a private key
+  if (!process.env.PRIVATE_KEY) {
+    throw new Error("PRIVATE_KEY environment variable not set");
   }
   
-  const wallet = new ethers.Wallet(privateKey, provider);
-  
+  const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
   console.log(`Deploying from account: ${wallet.address}`);
   
-  // Get contract factory
-  const ContractFactory = new ethers.ContractFactory(
-    contractArtifact.abi,
-    contractArtifact.bytecode,
+  // Load contract ABI and bytecode
+  // In a real deployment script, you would compile the contract and get ABI/bytecode
+  
+  // Hardcoded compiled contract details for example only
+  const contractFactory = new ethers.ContractFactory(
+    ABI, // This would be the ABI from compilation
+    BYTECODE, // This would be the bytecode from compilation
     wallet
   );
   
-  // Deploy contract
-  console.log("Deploying InjectAI DAO...");
-  const contract = await ContractFactory.deploy();
+  console.log("Sending deployment transaction...");
+  const contract = await contractFactory.deploy();
   
   console.log(`Transaction hash: ${contract.deployTransaction.hash}`);
+  console.log(`Waiting for confirmation...`);
   
-  // Wait for deployment to complete
   await contract.deployed();
   
-  console.log(`Contract deployed at: ${contract.address}`);
+  console.log(`Contract successfully deployed at: ${contract.address}`);
+  console.log(`To interact with this contract:`);
+  console.log(`1. Go to Settings in the app`);
+  console.log(`2. Enter the contract address: ${contract.address}`);
+  console.log(`3. Connect your wallet to Minato Testnet (Chain ID: 1946)`);
   
   return contract.address;
 }
 
-// Run the deployment
-// deploy().catch(console.error);
+// For user documentation purposes
+console.log(`
+==========================================================
+InjectAI DAO Contract Deployment Guide
+==========================================================
 
-// This is a placeholder file - actual deployment would require additional setup
-console.log("To deploy the InjectAI DAO contract to Minato Testnet:");
-console.log("1. Install hardhat: npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox");
-console.log("2. Initialize a hardhat project: npx hardhat init");
-console.log("3. Copy InjectAI_DAO.sol to the contracts folder");
-console.log("4. Create a deployment script based on the example above");
-console.log("5. Configure hardhat.config.js with your Minato Testnet private key");
-console.log("6. Run: npx hardhat run scripts/deploy.js --network minato");
+To deploy the InjectAI DAO contract to Minato Testnet:
+
+1. Install required dependencies:
+   $ npm install -g hardhat
+   $ npm install @nomicfoundation/hardhat-toolbox ethers@5.7.2
+
+2. Create a hardhat.config.js file:
+   ```
+   require("@nomicfoundation/hardhat-toolbox");
+   module.exports = {
+     solidity: "0.8.20",
+     networks: {
+       minato: {
+         url: "https://rpc.minato.soneium.org/",
+         accounts: [process.env.PRIVATE_KEY],
+         chainId: 1946
+       }
+     }
+   };
+   ```
+
+3. Copy the InjectAI_DAO.sol to the contracts folder
+
+4. Run the deployment command:
+   $ PRIVATE_KEY=your_private_key npx hardhat run deploy.js --network minato
+
+5. Once deployed, copy the contract address to the settings page
+   in the application to connect to your deployed contract.
+
+==========================================================
+`);
+
+// Uncomment to run the deployment
+// if (require.main === module) {
+//   deploy().catch(console.error);
+// }
+
+module.exports = { deploy };

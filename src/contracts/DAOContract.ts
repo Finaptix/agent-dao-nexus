@@ -1,8 +1,7 @@
 
 import { ethers } from "ethers";
 
-// ABI for the DAO Contract
-// This is a simplified ABI - you would replace this with your actual contract ABI
+// ABI for the DAO Contract - this should match the Solidity contract
 const DAO_ABI = [
   // Proposal functions
   "function createProposal(string title, string description, uint8 proposalType, string budget, string timeline) external returns (uint256)",
@@ -61,6 +60,10 @@ export class DAOContract {
     timeline: string
   ): Promise<string> {
     try {
+      if (!this.address || this.address === "0x0000000000000000000000000000000000000000") {
+        throw new Error("Contract address not set");
+      }
+      
       const tx = await this.contract.createProposal(title, description, proposalType, budget, timeline);
       await tx.wait();
       return tx.hash;
@@ -149,5 +152,16 @@ export class DAOContract {
   // Remove event listeners
   removeAllListeners(): void {
     this.contract.removeAllListeners();
+  }
+}
+
+// Helper function to check if a contract exists at an address
+export async function isContractAtAddress(provider: ethers.providers.Provider, address: string): Promise<boolean> {
+  try {
+    const code = await provider.getCode(address);
+    return code !== "0x"; // If code length > 0, there's a contract at this address
+  } catch (error) {
+    console.error("Error checking contract:", error);
+    return false;
   }
 }
