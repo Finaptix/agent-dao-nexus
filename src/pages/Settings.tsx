@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { toast } from 'sonner'; // Import directly from sonner package, not from our UI component
+import { toast } from 'sonner';
+import { useAppContext } from '@/contexts/AppContext';
 
 const Settings = () => {
+  const { walletConnected } = useAppContext();
+  const [contractAddress, setContractAddress] = useState<string>('');
+  
   const saveSettings = () => {
     toast.success('Settings saved', {
       description: 'Your settings have been successfully saved',
+    });
+  };
+
+  const saveContractAddress = () => {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
+      toast.error('Invalid contract address', {
+        description: 'Please enter a valid Ethereum contract address'
+      });
+      return;
+    }
+    
+    localStorage.setItem('daoContractAddress', contractAddress);
+    
+    toast.success('Contract address saved', {
+      description: `DAO contract address set to ${contractAddress.substring(0, 8)}...${contractAddress.substring(36)}`
     });
   };
 
@@ -31,6 +49,7 @@ const Settings = () => {
             <TabsTrigger value="network">Network</TabsTrigger>
             <TabsTrigger value="agents">Agents</TabsTrigger>
             <TabsTrigger value="interface">Interface</TabsTrigger>
+            <TabsTrigger value="contracts">Smart Contracts</TabsTrigger>
           </TabsList>
           
           <TabsContent value="network">
@@ -59,7 +78,26 @@ const Settings = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="contract-address">DAO Contract Address</Label>
-                  <Input id="contract-address" placeholder="0x..." />
+                  <div className="flex space-x-2">
+                    <Input 
+                      id="contract-address" 
+                      placeholder="0x..." 
+                      value={contractAddress}
+                      onChange={(e) => setContractAddress(e.target.value)}
+                      disabled={!walletConnected}
+                    />
+                    <Button 
+                      onClick={saveContractAddress}
+                      disabled={!walletConnected}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                  {!walletConnected && (
+                    <p className="text-xs text-destructive">
+                      Please connect your wallet to set contract address
+                    </p>
+                  )}
                 </div>
                 
                 <div className="flex items-center space-x-2">
@@ -208,6 +246,55 @@ const Settings = () => {
                 </div>
                 
                 <Button onClick={saveSettings}>Save Interface Settings</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="contracts">
+            <Card className="border border-sidebar-border">
+              <CardHeader>
+                <CardTitle>Smart Contract Settings</CardTitle>
+                <CardDescription>
+                  Configure DAO smart contract interaction
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contract-address">DAO Contract Address</Label>
+                  <div className="flex space-x-2">
+                    <Input 
+                      id="contract-address" 
+                      placeholder="0x..." 
+                      value={contractAddress}
+                      onChange={(e) => setContractAddress(e.target.value)}
+                      disabled={!walletConnected}
+                    />
+                    <Button 
+                      onClick={saveContractAddress}
+                      disabled={!walletConnected}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                  {!walletConnected && (
+                    <p className="text-xs text-destructive">
+                      Please connect your wallet to set contract address
+                    </p>
+                  )}
+                </div>
+                
+                <div className="rounded-md border border-sidebar-border bg-sidebar-accent/20 p-4 text-sm">
+                  <h3 className="font-medium mb-2">Smart Contract Information</h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    The Inject AI DAO Contract enables:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                    <li>Proposal submission and management</li>
+                    <li>Multi-agent voting and deliberation</li>
+                    <li>Autonomous execution of approved proposals</li>
+                    <li>On-chain governance record keeping</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

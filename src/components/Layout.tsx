@@ -10,6 +10,8 @@ import {
   History, 
   Settings 
 } from 'lucide-react';
+import WalletConnect from './WalletConnect';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface NavItemProps {
   to: string;
@@ -36,6 +38,12 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, active }) => (
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { 
+    walletConnected, 
+    walletAddress, 
+    connectWallet, 
+    disconnectWallet 
+  } = useAppContext();
 
   return (
     <div className="flex min-h-screen">
@@ -80,6 +88,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           />
         </nav>
         <div className="mt-auto border-t border-sidebar-border p-4">
+          <div className="mb-4">
+            <WalletConnect 
+              onConnect={connectWallet}
+              onDisconnect={disconnectWallet}
+              connected={walletConnected}
+              address={walletAddress}
+            />
+          </div>
           <NavItem 
             to="/settings" 
             icon={<Settings size={18} />} 

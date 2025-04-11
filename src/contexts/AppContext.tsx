@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Agent, Proposal, Transaction, Network, ProposalStatus, AgentVote } from '@/types';
 import { agents as mockAgents, proposals as mockProposals, transactions as mockTransactions, network as mockNetwork } from '@/data/mockData';
 import { toast } from 'sonner'; // Import directly from sonner package, not from our UI component
+import { ethers } from 'ethers';
 
 interface AppContextType {
   agents: Agent[];
@@ -11,11 +11,16 @@ interface AppContextType {
   network: Network;
   loading: boolean;
   selectedProposal: Proposal | null;
+  walletConnected: boolean;
+  walletAddress: string | null;
+  provider: ethers.providers.Web3Provider | null;
   updateProposalStatus: (proposalId: string, status: ProposalStatus) => void;
   addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt' | 'votes'>) => void;
   addAgentVote: (proposalId: string, vote: Omit<AgentVote, 'timestamp'>) => void;
   simulateAgentActivity: () => void;
   selectProposal: (proposalId: string | null) => void;
+  connectWallet: (address: string, provider: ethers.providers.Web3Provider) => void;
+  disconnectWallet: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -27,8 +32,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [network, setNetwork] = useState<Network>(mockNetwork);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [walletConnected, setWalletConnected] = useState<boolean>(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
 
   useEffect(() => {
+    // Check local storage for wallet connection
+    const savedAddress = localStorage.getItem('walletAddress');
+    if (savedAddress) {
+      // We can't restore the provider from local storage,
+      // but we can show the user as "connected" and prompt to reconnect
+      setWalletAddress(savedAddress);
+      setWalletConnected(true);
+    }
+    
     // Simulate loading data from blockchain
     const timer = setTimeout(() => {
       setLoading(false);
@@ -36,6 +53,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Listen for account changes
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length === 0) {
+          // User disconnected their wallet
+          disconnectWallet();
+        } else {
+          // User switched accounts
+          setWalletAddress(accounts[0]);
+          localStorage.setItem('walletAddress', accounts[0]);
+          toast.info('Account Changed', {
+            description: `Switched to ${accounts[0].substring(0, 6)}...${accounts[0].substring(accounts[0].length - 4)}`
+          });
+        }
+      });
+      
+      window.ethereum.on('chainChanged', (chainId: string) => {
+        // Handle chain change
+        const chainIdNumber = parseInt(chainId, 16);
+        if (chainIdNumber !== 1946) {
+          toast.warning('Network Changed', {
+            description: 'Please connect to Minato Testnet (Chain ID: 1946)'
+          });
+        } else {
+          toast.success('Connected to Minato Testnet', {
+            description: 'Chain ID: 1946'
+          });
+        }
+        // Reload the page to avoid any state inconsistencies
+        window.location.reload();
+      });
+    }
+    
+    return () => {
+      if (window.ethereum) {
+        window.ethereum.removeAllListeners('accountsChanged');
+        window.ethereum.removeAllListeners('chainChanged');
+      }
+    };
+  }, []);
+
+  const connectWallet = (address: string, web3Provider: ethers.providers.Web3Provider) => {
+    setWalletConnected(true);
+    setWalletAddress(address);
+    setProvider(web3Provider);
+    localStorage.setItem('walletAddress', address);
+  };
+
+  const disconnectWallet = () => {
+    setWalletConnected(false);
+    setWalletAddress(null);
+    setProvider(null);
+    localStorage.removeItem('walletAddress');
+  };
 
   const updateProposalStatus = (proposalId: string, status: ProposalStatus) => {
     setProposals(prev => 
@@ -289,11 +362,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         network,
         loading,
         selectedProposal,
+        walletConnected,
+        walletAddress,
+        provider,
         updateProposalStatus,
         addProposal,
         addAgentVote,
         simulateAgentActivity,
-        selectProposal
+        selectProposal,
+        connectWallet,
+        disconnectWallet
       }}
     >
       {children}
