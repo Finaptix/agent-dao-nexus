@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,22 @@ import { toast } from 'sonner';
 import { useAppContext } from '@/contexts/AppContext';
 
 const Settings = () => {
-  const { walletConnected } = useAppContext();
+  const { 
+    walletConnected, 
+    walletAddress, 
+    isCorrectNetwork, 
+    setDAOContractAddress, 
+    checkAndSwitchNetwork
+  } = useAppContext();
   const [contractAddress, setContractAddress] = useState<string>('');
+  
+  useEffect(() => {
+    // Load saved contract address from localStorage
+    const savedAddress = localStorage.getItem('daoContractAddress');
+    if (savedAddress) {
+      setContractAddress(savedAddress);
+    }
+  }, []);
   
   const saveSettings = () => {
     toast.success('Settings saved', {
@@ -19,7 +34,7 @@ const Settings = () => {
     });
   };
 
-  const saveContractAddress = () => {
+  const saveContractAddress = async () => {
     if (!/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
       toast.error('Invalid contract address', {
         description: 'Please enter a valid Ethereum contract address'
@@ -27,11 +42,22 @@ const Settings = () => {
       return;
     }
     
-    localStorage.setItem('daoContractAddress', contractAddress);
+    if (!walletConnected) {
+      toast.error('Wallet not connected', {
+        description: 'Please connect your wallet to set the contract address'
+      });
+      return;
+    }
     
-    toast.success('Contract address saved', {
-      description: `DAO contract address set to ${contractAddress.substring(0, 8)}...${contractAddress.substring(36)}`
-    });
+    if (!isCorrectNetwork) {
+      toast.warning('Wrong network', {
+        description: 'Please connect to Minato Testnet before setting the contract address'
+      });
+      const switched = await checkAndSwitchNetwork();
+      if (!switched) return;
+    }
+    
+    setDAOContractAddress(contractAddress);
   };
 
   return (
@@ -42,6 +68,29 @@ const Settings = () => {
           <p className="text-sm text-muted-foreground">
             Configure your Inject AI governance framework
           </p>
+          {!walletConnected && (
+            <div className="mt-4 rounded-md bg-orange-100 p-4 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+              <p className="text-sm font-medium">
+                ⚠️ Wallet not connected
+              </p>
+              <p className="text-xs">
+                Some features are limited until you connect your wallet to the Minato network
+              </p>
+            </div>
+          )}
+          {walletConnected && !isCorrectNetwork && (
+            <div className="mt-4 rounded-md bg-orange-100 p-4 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+              <p className="text-sm font-medium">
+                ⚠️ Wrong network
+              </p>
+              <p className="text-xs mb-2">
+                Please connect to the Minato Testnet (Chain ID: 1946)
+              </p>
+              <Button size="sm" variant="outline" onClick={checkAndSwitchNetwork}>
+                Switch Network
+              </Button>
+            </div>
+          )}
         </div>
         
         <Tabs defaultValue="network">
@@ -281,6 +330,11 @@ const Settings = () => {
                       Please connect your wallet to set contract address
                     </p>
                   )}
+                  {walletConnected && !isCorrectNetwork && (
+                    <p className="text-xs text-destructive">
+                      Please connect to Minato Testnet (Chain ID: 1946)
+                    </p>
+                  )}
                 </div>
                 
                 <div className="rounded-md border border-sidebar-border bg-sidebar-accent/20 p-4 text-sm">
@@ -294,6 +348,11 @@ const Settings = () => {
                     <li>Autonomous execution of approved proposals</li>
                     <li>On-chain governance record keeping</li>
                   </ul>
+                  
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    <strong>Note:</strong> You must deploy the contract to the Minato Testnet and paste its address above.
+                    See deployment instructions in src/contracts/deploy.js
+                  </p>
                 </div>
               </CardContent>
             </Card>

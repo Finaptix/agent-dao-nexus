@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Wallet, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { ethers } from 'ethers';
+import { useAppContext } from '@/contexts/AppContext';
 
 declare global {
   interface Window {
@@ -25,6 +26,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
   address 
 }) => {
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState<boolean>(false);
+  const { isCorrectNetwork, checkAndSwitchNetwork } = useAppContext();
   
   useEffect(() => {
     const checkMetaMask = async () => {
@@ -55,7 +57,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
       // Check if connected to the correct network (Minato Testnet)
       const network = await provider.getNetwork();
       if (network.chainId !== 1946) {
-        const switched = await switchToMinatoNetwork();
+        const switched = await checkAndSwitchNetwork();
         if (!switched) return;
       }
       
@@ -67,49 +69,6 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
       toast.error('Connection Failed', {
         description: error.message || 'Failed to connect wallet'
       });
-    }
-  };
-  
-  const switchToMinatoNetwork = async (): Promise<boolean> => {
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x79A' }], // 1946 in hex
-      });
-      return true;
-    } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [
-              {
-                chainId: '0x79A', // 1946 in hex
-                chainName: 'Minato Testnet',
-                nativeCurrency: {
-                  name: 'ETH',
-                  symbol: 'ETH',
-                  decimals: 18,
-                },
-                rpcUrls: ['https://rpc.minato.soneium.org/'],
-                blockExplorerUrls: ['https://explorer-testnet.soneium.org/'],
-              },
-            ],
-          });
-          return true;
-        } catch (addError: any) {
-          toast.error('Network Configuration Failed', {
-            description: addError.message || 'Failed to add Minato network to MetaMask'
-          });
-          return false;
-        }
-      } else {
-        toast.error('Network Switch Failed', {
-          description: switchError.message || 'Failed to switch to Minato network'
-        });
-        return false;
-      }
     }
   };
   
@@ -137,14 +96,21 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
   
   if (connected && address) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-1 text-sm">
-          <span className="mr-2 inline-block h-2 w-2 rounded-full bg-inject-green"></span>
-          {shortenAddress(address)}
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="rounded-md border border-sidebar-border bg-sidebar-accent/30 px-3 py-1 text-sm">
+            <span className={`mr-2 inline-block h-2 w-2 rounded-full ${isCorrectNetwork ? 'bg-inject-green' : 'bg-orange-500'}`}></span>
+            {shortenAddress(address)}
+          </div>
+          <Button variant="ghost" size="sm" onClick={disconnectWallet}>
+            Disconnect
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" onClick={disconnectWallet}>
-          Disconnect
-        </Button>
+        {!isCorrectNetwork && (
+          <p className="text-xs text-orange-500">
+            Wrong network. Switch to Minato Testnet
+          </p>
+        )}
       </div>
     );
   }

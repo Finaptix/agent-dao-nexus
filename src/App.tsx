@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "./contexts/AppContext";
+import NetworkEnforcer from "./components/NetworkEnforcer";
 import Index from "./pages/Index";
 import Agents from "./pages/Agents";
 import Proposals from "./pages/Proposals";
@@ -22,15 +23,17 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/proposals" element={<Proposals />} />
-            <Route path="/network" element={<Network />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <NetworkEnforcer>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/proposals" element={<Proposals />} />
+              <Route path="/network" element={<Network />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </NetworkEnforcer>
         </BrowserRouter>
       </AppProvider>
     </TooltipProvider>

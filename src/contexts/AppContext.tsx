@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Agent, Proposal, Transaction, Network, ProposalStatus, AgentVote } from '@/types';
 import { agents as mockAgents, proposals as mockProposals, transactions as mockTransactions, network as mockNetwork } from '@/data/mockData';
-import { toast } from 'sonner'; // Import directly from sonner package, not from our UI component
+import { toast } from 'sonner'; 
 import { ethers } from 'ethers';
+import { DAOContract } from '@/contracts/DAOContract';
 
 interface AppContextType {
   agents: Agent[];
@@ -14,6 +15,8 @@ interface AppContextType {
   walletConnected: boolean;
   walletAddress: string | null;
   provider: ethers.providers.Web3Provider | null;
+  daoContract: DAOContract | null;
+  isCorrectNetwork: boolean;
   updateProposalStatus: (proposalId: string, status: ProposalStatus) => void;
   addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt' | 'updatedAt' | 'votes'>) => void;
   addAgentVote: (proposalId: string, vote: Omit<AgentVote, 'timestamp'>) => void;
@@ -21,6 +24,8 @@ interface AppContextType {
   selectProposal: (proposalId: string | null) => void;
   connectWallet: (address: string, provider: ethers.providers.Web3Provider) => void;
   disconnectWallet: () => void;
+  checkAndSwitchNetwork: () => Promise<boolean>;
+  setDAOContractAddress: (address: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -35,18 +40,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
+  const [daoContract, setDaoContract] = useState<DAOContract | null>(null);
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check local storage for wallet connection
     const savedAddress = localStorage.getItem('walletAddress');
     if (savedAddress) {
-      // We can't restore the provider from local storage,
-      // but we can show the user as "connected" and prompt to reconnect
       setWalletAddress(savedAddress);
       setWalletConnected(true);
+      
+      if (window.ethereum) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        setProvider(provider);
+        
+        provider.getNetwork().then(network => {
+          setIsCorrectNetwork(network.chainId === 1946);
+          if (network.chainId !== 1946) {
+            toast.warning('Wrong Network', {
+              description: 'Please connect to Minato Testnet (Chain ID: 1946)'
+            });
+          }
+        });
+        
+        const contractAddress = localStorage.getItem('daoContractAddress');
+        if (contractAddress) {
+          const contract = new DAOContract(provider);
+          contract.setContractAddress(contractAddress);
+          setDaoContract(contract);
+        }
+      }
     }
     
-    // Simulate loading data from blockchain
     const timer = setTimeout(() => {
       setLoading(false);
     }, 1500);
@@ -54,15 +78,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for account changes
   useEffect(() => {
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length === 0) {
-          // User disconnected their wallet
           disconnectWallet();
         } else {
-          // User switched accounts
           setWalletAddress(accounts[0]);
           localStorage.setItem('walletAddress', accounts[0]);
           toast.info('Account Changed', {
@@ -72,8 +93,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       
       window.ethereum.on('chainChanged', (chainId: string) => {
-        // Handle chain change
         const chainIdNumber = parseInt(chainId, 16);
+        setIsCorrectNetwork(chainIdNumber === 1946);
+        
         if (chainIdNumber !== 1946) {
           toast.warning('Network Changed', {
             description: 'Please connect to Minato Testnet (Chain ID: 1946)'
@@ -83,8 +105,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             description: 'Chain ID: 1946'
           });
         }
-        // Reload the page to avoid any state inconsistencies
-        window.location.reload();
       });
     }
     
@@ -96,17 +116,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  const connectWallet = (address: string, web3Provider: ethers.providers.Web3Provider) => {
+  const checkAndSwitchNetwork = async (): Promise<boolean> => {
+    if (!provider || !window.ethereum) return false;
+    
+    try {
+      const network = await provider.getNetwork();
+      if (network.chainId !== 1946) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x79A' }],
+          });
+          return true;
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [
+                  {
+                    chainId: '0x79A',
+                    chainName: 'Minato Testnet',
+                    nativeCurrency: {
+                      name: 'ETH',
+                      symbol: 'ETH',
+                      decimals: 18,
+                    },
+                    rpcUrls: ['https://rpc.minato.soneium.org/'],
+                    blockExplorerUrls: ['https://explorer-testnet.soneium.org/'],
+                  },
+                ],
+              });
+              return true;
+            } catch (addError: any) {
+              toast.error('Network Configuration Failed', {
+                description: addError.message || 'Failed to add Minato network to MetaMask'
+              });
+              return false;
+            }
+          } else {
+            toast.error('Network Switch Failed', {
+              description: switchError.message || 'Failed to switch to Minato network'
+            });
+            return false;
+          }
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error("Error checking network:", error);
+      return false;
+    }
+  };
+
+  const connectWallet = async (address: string, web3Provider: ethers.providers.Web3Provider) => {
     setWalletConnected(true);
     setWalletAddress(address);
     setProvider(web3Provider);
     localStorage.setItem('walletAddress', address);
+    
+    const network = await web3Provider.getNetwork();
+    setIsCorrectNetwork(network.chainId === 1946);
+    
+    const contractAddress = localStorage.getItem('daoContractAddress');
+    if (contractAddress) {
+      const contract = new DAOContract(web3Provider);
+      contract.setContractAddress(contractAddress);
+      setDaoContract(contract);
+    }
+    
+    if (network.chainId !== 1946) {
+      toast.warning('Wrong Network', {
+        description: 'Please connect to Minato Testnet to use all features'
+      });
+    }
+  };
+
+  const setDAOContractAddress = (address: string) => {
+    if (!provider) {
+      toast.error('Wallet Not Connected', {
+        description: 'Please connect your wallet first'
+      });
+      return;
+    }
+    
+    try {
+      const contract = new DAOContract(provider);
+      contract.setContractAddress(address);
+      setDaoContract(contract);
+      localStorage.setItem('daoContractAddress', address);
+      
+      toast.success('Contract Connected', {
+        description: 'DAO contract connected successfully'
+      });
+    } catch (error: any) {
+      toast.error('Contract Connection Failed', {
+        description: error.message || 'Failed to connect to contract'
+      });
+    }
   };
 
   const disconnectWallet = () => {
     setWalletConnected(false);
     setWalletAddress(null);
     setProvider(null);
+    setDaoContract(null);
+    setIsCorrectNetwork(false);
     localStorage.removeItem('walletAddress');
   };
 
@@ -120,7 +235,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (status === 'approved' || status === 'rejected' || status === 'executed') {
-      // Generate a mock transaction for the status change
       const newTxHash = `0x${Math.random().toString(16).substring(2, 10)}...`;
       
       const newTransaction: Transaction = {
@@ -135,7 +249,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       setTransactions(prev => [...prev, newTransaction]);
       
-      // Update proposal with txHash
       setProposals(prev => 
         prev.map(p => 
           p.id === proposalId 
@@ -164,7 +277,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setProposals(prev => [...prev, newProposal]);
 
-    // Generate a mock transaction for the new proposal
     const newTxHash = `0x${Math.random().toString(16).substring(2, 10)}...`;
     
     const newTransaction: Transaction = {
@@ -179,7 +291,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     setTransactions(prev => [...prev, newTransaction]);
 
-    // Update network with new proposal node
     const newNodeId = `node-${network.nodes.length + 1}`;
     
     setNetwork(prev => ({
@@ -187,7 +298,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       links: [
         ...prev.links,
         ...agents.map((agent, index) => ({
-          source: `node-${index + 1}`, // Agent nodes are 1-indexed
+          source: `node-${index + 1}`,
           target: newNodeId,
           value: 1,
           type: 'routing' as const
@@ -199,7 +310,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: 'Your proposal has been submitted to the DAO',
     });
 
-    // Change status to reviewing after 2 seconds
     setTimeout(() => {
       updateProposalStatus(id, 'reviewing');
       simulateAgentReview(id);
@@ -207,18 +317,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const simulateAgentReview = (proposalId: string) => {
-    // Set agents to analyzing state
     setAgents(prev => 
       prev.map(agent => ({ ...agent, status: 'analyzing' }))
     );
     
-    // After 3 seconds, start voting
     setTimeout(() => {
       setAgents(prev => 
         prev.map(agent => ({ ...agent, status: 'voting' }))
       );
       
-      // Simulate voting one by one
       agents.forEach((agent, index) => {
         setTimeout(() => {
           const vote: AgentVote['vote'] = Math.random() > 0.3 ? 'approve' : 'revise';
@@ -242,11 +349,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             vote,
             reason: reasons[agent.type][vote]
           });
-          
-        }, (index + 1) * 2000); // Vote every 2 seconds
+        }, (index + 1) * 2000);
       });
       
-      // After all agents have voted, update proposal status
       setTimeout(() => {
         const proposal = proposals.find(p => p.id === proposalId);
         if (proposal) {
@@ -259,7 +364,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
         
-        // Set agents back to idle
         setAgents(prev => 
           prev.map(agent => ({ ...agent, status: 'idle' }))
         );
@@ -285,7 +389,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    // Generate a mock transaction for the vote
     const newTxHash = `0x${Math.random().toString(16).substring(2, 10)}...`;
     
     const newTransaction: Transaction = {
@@ -300,7 +403,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     setTransactions(prev => [...prev, newTransaction]);
 
-    // Update network with new vote link
     const agentNode = network.nodes.find(node => node.entityId === vote.agentId);
     const proposalNode = network.nodes.find(node => node.entityId === proposalId);
     
@@ -329,7 +431,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const simulateAgentActivity = () => {
-    // Randomly select a proposal to review
     const pendingProposals = proposals.filter(p => p.status === 'pending');
     
     if (pendingProposals.length > 0) {
@@ -365,13 +466,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         walletConnected,
         walletAddress,
         provider,
+        daoContract,
+        isCorrectNetwork,
         updateProposalStatus,
         addProposal,
         addAgentVote,
         simulateAgentActivity,
         selectProposal,
         connectWallet,
-        disconnectWallet
+        disconnectWallet,
+        checkAndSwitchNetwork,
+        setDAOContractAddress
       }}
     >
       {children}
