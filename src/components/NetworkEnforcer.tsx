@@ -4,6 +4,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Wallet, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { ethers } from 'ethers';
 
 interface NetworkEnforcerProps {
   children: React.ReactNode;
