@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -148,12 +149,13 @@ contract InjectAIDAO {
     function createProposal(
         string memory title,
         string memory description,
-        ProposalType proposalType,
+        uint8 proposalType,
         string memory budget,
         string memory timeline
     ) external returns (uint256) {
         require(bytes(title).length > 0, "Title cannot be empty");
         require(bytes(description).length > 0, "Description cannot be empty");
+        require(proposalType <= uint8(ProposalType.Other), "Invalid proposal type");
         
         uint256 proposalId = nextProposalId++;
         
@@ -161,7 +163,7 @@ contract InjectAIDAO {
         newProposal.id = proposalId;
         newProposal.title = title;
         newProposal.description = description;
-        newProposal.proposalType = proposalType;
+        newProposal.proposalType = ProposalType(proposalType);
         newProposal.status = ProposalStatus.Pending;
         newProposal.createdAt = block.timestamp;
         newProposal.updatedAt = block.timestamp;
@@ -184,9 +186,10 @@ contract InjectAIDAO {
     function voteOnProposal(
         uint256 proposalId,
         uint256 agentId,
-        VoteType vote,
+        uint8 vote,
         string memory reason
     ) external proposalExists(proposalId) agentExists(agentId) onlyAgentController(agentId) {
+        require(vote <= uint8(VoteType.Revise), "Invalid vote type");
         require(!agentVoted[proposalId][agentId], "Agent has already voted on this proposal");
         require(
             proposals[proposalId].status == ProposalStatus.Reviewing ||
@@ -197,7 +200,7 @@ contract InjectAIDAO {
         // Record the vote
         AgentVote memory newVote = AgentVote({
             agentId: agentId,
-            vote: vote,
+            vote: VoteType(vote),
             reason: reason,
             timestamp: block.timestamp
         });
@@ -207,17 +210,17 @@ contract InjectAIDAO {
         
         // Update vote counts
         Proposal storage proposal = proposals[proposalId];
-        if (vote == VoteType.Approve) {
+        if (VoteType(vote) == VoteType.Approve) {
             proposal.approvalCount++;
-        } else if (vote == VoteType.Reject) {
+        } else if (VoteType(vote) == VoteType.Reject) {
             proposal.rejectionCount++;
-        } else if (vote == VoteType.Revise) {
+        } else if (VoteType(vote) == VoteType.Revise) {
             proposal.revisionCount++;
         }
         
         proposal.updatedAt = block.timestamp;
         
-        emit VoteCast(proposalId, agentId, vote, reason);
+        emit VoteCast(proposalId, agentId, VoteType(vote), reason);
         
         // Check if voting threshold is met
         _checkVotingThreshold(proposalId);
@@ -228,15 +231,16 @@ contract InjectAIDAO {
      * @param proposalId ID of the proposal
      * @param newStatus New status to set
      */
-    function changeProposalStatus(uint256 proposalId, ProposalStatus newStatus) 
+    function changeProposalStatus(uint256 proposalId, uint8 newStatus) 
         external 
         proposalExists(proposalId) 
         onlyOwner 
     {
-        proposals[proposalId].status = newStatus;
+        require(newStatus <= uint8(ProposalStatus.Executed), "Invalid proposal status");
+        proposals[proposalId].status = ProposalStatus(newStatus);
         proposals[proposalId].updatedAt = block.timestamp;
         
-        emit ProposalStatusChanged(proposalId, newStatus);
+        emit ProposalStatusChanged(proposalId, ProposalStatus(newStatus));
     }
     
     /**
@@ -269,10 +273,11 @@ contract InjectAIDAO {
      */
     function registerAgent(
         string memory name,
-        AgentType agentType,
+        uint8 agentType,
         string memory description
     ) external onlyOwner returns (uint256) {
-        return _registerAgent(name, agentType, description);
+        require(agentType <= uint8(AgentType.Optimizer), "Invalid agent type");
+        return _registerAgent(name, AgentType(agentType), description);
     }
     
     /**
@@ -293,14 +298,15 @@ contract InjectAIDAO {
      * @param agentId ID of the agent
      * @param status New status
      */
-    function setAgentStatus(uint256 agentId, AgentStatus status) 
+    function setAgentStatus(uint256 agentId, uint8 status) 
         external 
         agentExists(agentId) 
         onlyAgentController(agentId) 
     {
-        agents[agentId].status = status;
+        require(status <= uint8(AgentStatus.Debating), "Invalid agent status");
+        agents[agentId].status = AgentStatus(status);
         
-        emit AgentStatusChanged(agentId, status);
+        emit AgentStatusChanged(agentId, AgentStatus(status));
     }
     
     /**

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +15,14 @@ const proposalTypes = [
   { value: 'community', label: 'Community' },
   { value: 'other', label: 'Other' }
 ];
+
+const proposalTypeToIndex = {
+  'funding': 0,
+  'governance': 1,
+  'development': 2,
+  'community': 3,
+  'other': 4
+};
 
 const CreateProposalForm = () => {
   const { 
@@ -65,12 +72,12 @@ const CreateProposalForm = () => {
       // If we have a contract connection, submit on-chain
       if (daoContract) {
         // Convert proposalType string to number for the contract
-        const proposalTypeIndex = proposalTypes.findIndex(t => t.value === proposalType);
+        const proposalTypeIndex = proposalTypeToIndex[proposalType];
         
         const tx = await daoContract.createProposal(
           title,
           description,
-          proposalTypeIndex >= 0 ? proposalTypeIndex : 0,
+          proposalTypeIndex,
           budget || 'N/A',
           timeline || 'N/A'
         );

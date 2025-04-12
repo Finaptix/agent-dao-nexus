@@ -7,21 +7,26 @@ const DAO_ABI = [
   "function createProposal(string title, string description, uint8 proposalType, string budget, string timeline) external returns (uint256)",
   "function voteOnProposal(uint256 proposalId, uint256 agentId, uint8 vote, string reason) external",
   "function executeProposal(uint256 proposalId) external",
-  "function getProposal(uint256 proposalId) external view returns (tuple(uint256 id, string title, string description, uint8 proposalType, uint8 status, uint256 createdAt, uint256 updatedAt, address author, string budget, string timeline))",
+  "function getProposal(uint256 proposalId) external view returns (tuple(uint256 id, string title, string description, uint8 proposalType, uint8 status, uint256 createdAt, uint256 updatedAt, address author, string budget, string timeline, uint256 approvalCount, uint256 rejectionCount, uint256 revisionCount))",
   
   // Agent functions
   "function registerAgent(string name, uint8 agentType, string description) external returns (uint256)",
-  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint8 agentType, string description, uint8 status))",
+  "function getAgent(uint256 agentId) external view returns (tuple(uint256 id, string name, uint8 agentType, string description, uint8 status, address controller))",
   
   // Status and Info
   "function owner() external view returns (address)",
   "function requiredApprovals() external view returns (uint256)",
   "function setRequiredApprovals(uint256 count) external",
+  "function changeProposalStatus(uint256 proposalId, uint8 newStatus) external",
+  "function setAgentStatus(uint256 agentId, uint8 status) external",
   
   // Events
   "event ProposalCreated(uint256 indexed proposalId, address indexed author, string title)",
   "event VoteCast(uint256 indexed proposalId, uint256 indexed agentId, uint8 vote, string reason)",
-  "event ProposalStatusChanged(uint256 indexed proposalId, uint8 newStatus)"
+  "event ProposalStatusChanged(uint256 indexed proposalId, uint8 newStatus)",
+  "event ProposalExecuted(uint256 indexed proposalId)",
+  "event AgentRegistered(uint256 indexed agentId, string name, uint8 agentType)",
+  "event AgentStatusChanged(uint256 indexed agentId, uint8 newStatus)"
 ];
 
 export class DAOContract {
