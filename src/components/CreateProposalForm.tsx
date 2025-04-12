@@ -87,7 +87,8 @@ const CreateProposalForm = () => {
         type: proposalType, // Now this is correctly typed as ProposalType
         author: walletAddress || '0x0',
         budget: budget || 'N/A',
-        timeline: timeline || 'N/A'
+        timeline: timeline || 'N/A',
+        status: 'pending' // Add the missing status property
       });
       
       // Reset form
