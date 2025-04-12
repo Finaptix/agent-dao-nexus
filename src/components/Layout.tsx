@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import WalletConnect from './WalletConnect';
 import { useAppContext } from '@/contexts/AppContext';
-import { useMediaQuery } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavItemProps {
   to: string;
@@ -51,7 +50,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   } = useAppContext();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isMobile = useIsMobile();
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -67,7 +66,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
   };
 
-  // Sidebar content component to avoid duplication
   const SidebarContent = () => (
     <>
       <div className="flex h-14 items-center border-b border-sidebar-border px-4">
@@ -173,7 +171,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Mobile menu button */}
       {isMobile && (
         <button
           onClick={toggleMobileSidebar}
@@ -183,7 +180,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </button>
       )}
 
-      {/* Mobile sidebar */}
       {isMobile && (
         <div
           className={cn(
@@ -201,7 +197,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       )}
 
-      {/* Desktop sidebar */}
       {!isMobile && (
         <aside 
           className={cn(
@@ -213,7 +208,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </aside>
       )}
 
-      {/* Main content */}
       <main 
         className={cn(
           "flex-1 transition-all duration-300",
