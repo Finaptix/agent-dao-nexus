@@ -8,6 +8,7 @@ import { AppProvider } from "./contexts/AppContext";
 import NetworkEnforcer from "./components/NetworkEnforcer";
 import Index from "./pages/Index";
 import Agents from "./pages/Agents";
+import AgentDetail from "./pages/AgentDetail";
 import Proposals from "./pages/Proposals";
 import Network from "./pages/Network";
 import Transactions from "./pages/Transactions";
@@ -27,6 +28,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/agents" element={<Agents />} />
+              <Route path="/agent/:id" element={<AgentDetail />} />
               <Route path="/proposals" element={<Proposals />} />
               <Route path="/network" element={<Network />} />
               <Route path="/transactions" element={<Transactions />} />
