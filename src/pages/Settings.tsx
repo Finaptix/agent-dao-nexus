@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useAppContext } from '@/contexts/AppContext';
+import AIAgentTest from '@/components/AIAgentTest';
 
 const Settings = () => {
   const { 
@@ -97,6 +97,7 @@ const Settings = () => {
           <TabsList className="mb-4">
             <TabsTrigger value="network">Network</TabsTrigger>
             <TabsTrigger value="agents">Agents</TabsTrigger>
+            <TabsTrigger value="ai-agents">AI Agents</TabsTrigger>
             <TabsTrigger value="interface">Interface</TabsTrigger>
             <TabsTrigger value="contracts">Smart Contracts</TabsTrigger>
           </TabsList>
@@ -255,6 +256,53 @@ const Settings = () => {
                 <Button onClick={saveSettings}>Save Agent Settings</Button>
               </CardContent>
             </Card>
+          </TabsContent>
+          
+          <TabsContent value="ai-agents">
+            <div className="grid gap-6 md:grid-cols-2">
+              <AIAgentTest />
+              
+              <Card className="border border-sidebar-border">
+                <CardHeader>
+                  <CardTitle>Mistral AI Configuration</CardTitle>
+                  <CardDescription>
+                    Configure how AI agents analyze and respond to proposals
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="system-prompt">Default System Prompt</Label>
+                    <Textarea 
+                      id="system-prompt" 
+                      className="min-h-[120px]"
+                      defaultValue="You are an intelligent AI agent in a decentralized autonomous organization (DAO). Analyze proposals objectively, provide insights, and give clear, concise recommendations."
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The system prompt can be customized by editing the Edge Function directly.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between rounded-md border border-sidebar-border p-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Enable AI Governance</h3>
+                      <p className="text-xs text-muted-foreground">Allow AI agents to participate in governance</p>
+                    </div>
+                    <Switch id="enable-ai" defaultChecked />
+                  </div>
+                  
+                  <div className="flex items-center justify-between rounded-md border border-sidebar-border p-3">
+                    <div>
+                      <h3 className="text-sm font-medium">Automatic Analysis</h3>
+                      <p className="text-xs text-muted-foreground">Analyze new proposals automatically</p>
+                    </div>
+                    <Switch id="auto-analysis" defaultChecked />
+                  </div>
+                  
+                  <Button onClick={saveSettings}>Save AI Settings</Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           
           <TabsContent value="interface">
