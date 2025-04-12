@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppContext } from '@/contexts/AppContext';
 import { toast } from 'sonner';
+import { ProposalType } from '@/types';
 
 const proposalTypes = [
-  { value: '0', label: 'Funding' },
-  { value: '1', label: 'Governance' },
-  { value: '2', label: 'Development' },
-  { value: '3', label: 'Community' },
-  { value: '4', label: 'Other' }
+  { value: 'funding', label: 'Funding' },
+  { value: 'governance', label: 'Governance' },
+  { value: 'development', label: 'Development' },
+  { value: 'community', label: 'Community' },
+  { value: 'other', label: 'Other' }
 ];
 
 const CreateProposalForm = () => {
@@ -28,7 +29,7 @@ const CreateProposalForm = () => {
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [proposalType, setProposalType] = useState('0');
+  const [proposalType, setProposalType] = useState<ProposalType>('funding');
   const [budget, setBudget] = useState('');
   const [timeline, setTimeline] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,10 +64,13 @@ const CreateProposalForm = () => {
     try {
       // If we have a contract connection, submit on-chain
       if (daoContract) {
+        // Convert proposalType string to number for the contract
+        const proposalTypeIndex = proposalTypes.findIndex(t => t.value === proposalType);
+        
         const tx = await daoContract.createProposal(
           title,
           description,
-          parseInt(proposalType),
+          proposalTypeIndex >= 0 ? proposalTypeIndex : 0,
           budget || 'N/A',
           timeline || 'N/A'
         );
@@ -80,7 +84,7 @@ const CreateProposalForm = () => {
       addProposal({
         title,
         description,
-        type: proposalTypes.find(t => t.value === proposalType)?.label.toLowerCase() || 'other',
+        type: proposalType, // Now this is correctly typed as ProposalType
         author: walletAddress || '0x0',
         budget: budget || 'N/A',
         timeline: timeline || 'N/A'
@@ -89,7 +93,7 @@ const CreateProposalForm = () => {
       // Reset form
       setTitle('');
       setDescription('');
-      setProposalType('0');
+      setProposalType('funding');
       setBudget('');
       setTimeline('');
     } catch (error: any) {
@@ -131,7 +135,7 @@ const CreateProposalForm = () => {
         <Label htmlFor="type">Proposal Type</Label>
         <Select 
           value={proposalType} 
-          onValueChange={setProposalType}
+          onValueChange={(value) => setProposalType(value as ProposalType)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a proposal type" />
